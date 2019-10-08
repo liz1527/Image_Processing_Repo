@@ -12,6 +12,9 @@ from scipy.stats import norm
 from astropy.convolution import Gaussian2DKernel
 from astropy.convolution import convolve
 from photutils import CircularAperture, aperture_photometry
+from astropy.coordinates import match_coordinates_sky
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import vari_funcs
 plt.close('all')
 
@@ -62,35 +65,42 @@ def convolve_one_psf(psf, sigmakernel):
 #    print(np.sum(newpsf))
     return newpsf
     
-#sdata = fits.open('mag_flux_tables/stars_mag_flux_table.fits')[1].data
-oldsdata = fits.open('mag_flux_tables/stars_mag_flux_table_H.fits')[1].data
+psf_data = fits.open('UDS_catalogues/DR11_stars_for_PSFs.fits')[1].data
+oldsdata = fits.open('mag_flux_tables/H/stars_mag_flux_table_H_cleaned_PSF.fits')[1].data
 hdr08B = fits.getheader('Images/UDS-DR11-K.mef.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 
 colname = 'FWHM_WORLD_'
 #data = sem05B[colname][:,1]
-semesters = ['06B', '07B', '08B', '09B', '10B', '11B', '12B']#['05B','10B']
+semesters = ['06B', '07B', '08B', '09B', '10B', '11B']#, '12B']#['05B','10B']
 centre = [29,29]
 
-avgFWHM = np.zeros(len(semesters))
+#avgFWHM = np.zeros(len(semesters))
 oldavgFWHM = np.zeros(len(semesters))
-avgflux = np.zeros(len(semesters))
+#avgflux = np.zeros(len(semesters))
 #oldavgflux = np.zeros(len(semesters))
 psf = {}
 oldpsf = {}
 for n, sem in enumerate(semesters):
     # for new
     colnames = colname+sem
-    # for old
-    oldmag = oldsdata['MAG_APER_'+sem][:,4]
-    mask1 = oldmag > 15 #removes saturated
-    mask2 = oldmag < 19 #removes very faint stars
-    oldmask = mask1 * mask2
-    tempsdata = oldsdata[oldmask]
+    ### Define coordinates ###
+    refcoord = SkyCoord(psf_data['ALPHA_J2000_1']*u.degree, psf_data['DELTA_J2000_1']*u.degree)
+    semcoord = SkyCoord(oldsdata['ALPHA_J2000_'+sem]*u.degree, oldsdata['DELTA_J2000_'+sem]*u.degree)
+    
+    ### Match catalogues and create new table ###
+    idx, d2d , _ = match_coordinates_sky(refcoord, semcoord) #match these 'good' stars to create table
+    tempsdata = oldsdata[idx]
+    
+    oldmag = tempsdata['MAG_APER_'+sem][:,4]
+#    mask1 = oldmag > 15 #removes saturated
+#    mask2 = oldmag < 19 #removes very faint stars
+#    oldmask = mask1 * mask2
+#    tempsdata = oldsdata[oldmask]
     oldavgFWHM[n] = np.median(tempsdata[colnames]) #* 3600
 #    flux = tempsdata['FLUX_APER_'+sem][:,4]
 #    oldavgflux[n] = np.median(flux)
-    oldpsf[sem] = fits.open('PSFs/'+sem+'_H_PSF.fits')[0].data
+    oldpsf[sem] = fits.open('PSFs/H/cleaned_Kstars_'+sem+'_H_PSF.fits')[0].data
 #    if sem == '10B':
 #        oldpsf[sem] = fits.open('PSFs/limited_'+sem+'_K_PSF.fits')[0].data
 #    else:
@@ -117,7 +127,8 @@ oldphot = {}
 oldflux = np.zeros(len(semesters))
 
 ### testing the extra factor method ###
-tests =np.linspace(-0.5,0.11,1000)
+tests =np.linspace(-0.61,0.25,1000)
+#tests =np.linspace(0.7,-1.2,1000)
 r = np.arange(0,42,1) * const * 3600 # define radius values
 
 #flux10B = oldflux[3]
@@ -135,38 +146,47 @@ pixelr = (1.5/3600) / const
 aperture = CircularAperture(centre, pixelr)
 t = np.linspace(1, 8, num=8)
 
-plt.figure()
+plt.figure(11)
 plt.plot(r, sqrtaimrp,label=aimsem)   
 for n, sem in enumerate(semesters):
     if sem == aimsem:
         phot = aperture_photometry(aimpsf, aperture)
         aperflux[n] = phot['aperture_sum'][0]
         oldaperflux[n] = phot['aperture_sum'][0]
-        plt.figure()
+        plt.figure(10)
         plt.imshow(np.log(aimpsf))
         vari_funcs.no_ticks()
         continue
     
+    print(sem)
+    
     sigma = sigmaold[n]
     singlephot = {}
     singleflux = np.zeros(len(tests))
+#    sumdiff = np.zeros(len(tests))
     sumdiffold = 10
+    k=0
     for m, extra in enumerate(tests):
-#        print(extra)
-        sigmakernel = np.sqrt(sigmabroad**2 - sigma**2) + extra
+        sigsq = sigmabroad**2 - sigma**2
+        if sigsq <= 0:
+            sigsq = sigma**2 - sigmabroad**2
+        sigmakernel = np.sqrt(sigsq) + extra
         if sigmakernel <= 0:
+            sumdiff = np.nan
             continue
+        k+=1
         new = convolve_one_psf(oldpsf[sem], sigmakernel)    
-        
+
         ### Get radial profile ###
         radialprofile = radial_profile(new, centre)
         sqrtrp = np.sqrt(radialprofile)
         
         diff = aimrp[:12] - radialprofile[:12]
         sumdiff = np.nansum(diff)
-#        plt.figure(1)
+#        plt.figure(n)
 ##            plt.subplot(4,2,n+1)
-##            plt.plot(r, sqrtaimrp,label='10B')    
+#        if k == 1:    
+#            plt.plot(r, sqrtaimrp,label='aim')    
 #        plt.plot(r,sqrtrp, '--', label=sem+' '+str(extra))
 #        plt.ylabel('sqrt(Flux)')
 #        plt.xlabel('Radius (arcsec)')
@@ -181,40 +201,119 @@ for n, sem in enumerate(semesters):
                 print('extra ='+str(extra))
                 extras[n] = extra    
             
-            plt.figure(1)
+            sigsq = sigmabroad**2 - sigma**2
+            if sigsq <= 0:
+                sigsq = sigma**2 - sigmabroad**2
+            sigmakernel = np.sqrt(sigsq) + extras[n]
+            new = convolve_one_psf(oldpsf[sem], sigmakernel)    
+            
+            ### Get radial profile ###
+            radialprofile = radial_profile(new, centre)
+            sqrtrp = np.sqrt(radialprofile)
+            
+            diff = aimrp[:12] - radialprofile[:12]
+    
+            plt.figure(11)
 #            plt.subplot(4,2,n+1)
 #            plt.plot(r, sqrtaimrp,label='10B')    
-            plt.plot(r,sqrtrp, '--', label=sem+' '+str(extra))
+            plt.plot(r,sqrtrp, '--', label=sem+' '+str(extras[n]))
             plt.ylabel('sqrt(Flux)')
             plt.xlabel('Radius (arcsec)')
 #            plt.xlim(xmax=1.5)
             plt.legend()
-            plt.figure(2)
+            plt.figure(12)
             plt.plot(r[:12], diff, label=sem)
             plt.hlines(0,0,1.5)
             plt.xlim(xmin=0, xmax=1.5)
             plt.legend()
             plt.ylabel('Difference from aim rp')
             plt.xlabel('Radius (arcsec)')
-            
+#            
             phot = aperture_photometry(new, aperture)
             aperflux[n] = phot['aperture_sum'][0]
             oldphot = aperture_photometry(oldpsf[sem], aperture)
             oldaperflux[n] = oldphot['aperture_sum'][0]
-            
-#            plt.figure()
-#            plt.subplot(121)
-#            plt.imshow(np.log(oldpsf[sem]))
-#            vari_funcs.no_ticks()
-#            
-#            plt.subplot(122)
-#            plt.imshow(np.log(new))
-#            vari_funcs.no_ticks()
+#            print(sumdiffold)
+
+            print(str(sigmakernel))
+##            plt.figure()
+##            plt.subplot(121)
+##            plt.imshow(np.log(oldpsf[sem]))
+##            vari_funcs.no_ticks()
+##            
+##            plt.subplot(122)
+##            plt.imshow(np.log(new))
+##            vari_funcs.no_ticks()
             break
         else:
             sumdiffold = sumdiff       
+    
+#    for m, extra in enumerate(tests):
+#        sigsq = sigmabroad**2 - sigma**2
+#        if sigsq <= 0:
+#            sigsq = sigma**2 - sigmabroad**2
+#        sigmakernel = np.sqrt(sigsq) + extra
+#        if sigmakernel <= 0:
+#            sumdiff[m] = np.nan
+#            continue
+#        k+=1
+#        new = convolve_one_psf(oldpsf[sem], sigmakernel)    
+#        
+#        ### Get radial profile ###
+#        radialprofile = radial_profile(new, centre)
+#        sqrtrp = np.sqrt(radialprofile)
+#        
+#        diff = aimrp[:12] - radialprofile[:12]
+#        sumdiff[m] = np.nansum(diff)
+#        if sumdiff[m] == 0:
+#            sumdiff[m] = np.nan
+#    best = np.nanmin(sumdiff)
+#    extras[n] = tests[sumdiff == best]
+#    print(best)
+#    print('extra ='+str(extras[n]))
+#    extras[n] = best    
+#            
+#    sigsq = sigmabroad**2 - sigma**2
+#    if sigsq <= 0:
+#        sigsq = sigma**2 - sigmabroad**2
+#    sigmakernel = np.sqrt(sigsq) + extras[n]
+#    new = convolve_one_psf(oldpsf[sem], sigmakernel)    
+#    
+#    ### Get radial profile ###
+#    radialprofile = radial_profile(new, centre)
+#    sqrtrp = np.sqrt(radialprofile)
+#    
+#    diff = aimrp[:12] - radialprofile[:12]
+#    
+#    plt.figure(1)
+##            plt.subplot(4,2,n+1)
+##            plt.plot(r, sqrtaimrp,label='10B')    
+#    plt.plot(r,sqrtrp, '--', label=sem+' '+str(extras[n]))
+#    plt.ylabel('sqrt(Flux)')
+#    plt.xlabel('Radius (arcsec)')
+##            plt.xlim(xmax=1.5)
+#    plt.legend()
+#    plt.figure(2)
+#    plt.plot(r[:12], diff, label=sem)
+#    plt.hlines(0,0,1.5)
+#    plt.xlim(xmin=0, xmax=1.5)
+#    plt.legend()
+#    plt.ylabel('Difference from aim rp')
+#    plt.xlabel('Radius (arcsec)')
+##            
+#    phot = aperture_photometry(new, aperture)
+#    aperflux[n] = phot['aperture_sum'][0]
+#    oldphot = aperture_photometry(oldpsf[sem], aperture)
+#    oldaperflux[n] = oldphot['aperture_sum'][0]
+##            print(sumdiffold)
+#
+#    sigsq = sigmabroad**2 - sigma**2
+#    if sigsq <= 0:
+#        sigsq = sigma**2 - sigmabroad**2
+#    sigmafinal = np.sqrt(sigsq) + extras[n]
+#    print(str(sigmafinal))
 
-x = [1,2,3,4,6,7,8]
+x = [2,3,4,5,6,7]#,8]
 years = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']
 plt.figure(figsize=[9,6])
 plt.plot(x, aperflux,'o-', label='new')
@@ -223,4 +322,4 @@ plt.xticks(t, years)
 plt.xlabel('Semester')
 plt.legend()
 plt.tight_layout()
-#np.save('extrascleanedno06', extras)
+np.save('extrascleanedH_no12B', extras)
