@@ -16,6 +16,7 @@ from astropy.convolution import convolve
 #from scipy import ndimage
 #import math
 #from astropy.stats import median_absolute_deviation
+plt.close('all')
 import time
 start = time.time()
 print(start)
@@ -36,12 +37,12 @@ def fluxrad2sigma(fluxrad):
     
 stars = fits.open('mag_flux_tables/stars_mag_flux_table.fits')
 sdata = stars[1].data
-hdr08B = fits.getheader('UDS_08B_K.fits') # random year (same in all)
+hdr08B = fits.getheader('Images/UDS_08B_K.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 
 colname = 'FWHM_WORLD_'
 #data = sem05B[colname][:,1]
-semesters = ['05B','10B']#['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']
+semesters = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']#['05B','10B']
 
 avgFWHM = np.zeros(8)
 psf = {}
@@ -85,21 +86,26 @@ def convolve_image(filename, sigmakernel):
     kernel = Gaussian2DKernel(sigmakernel)
     plt.figure()
     plt.imshow(kernel)
-#    newim05B = convolve(im05B, kernel, normalize_kernel=True)
+    newim05B = convolve(im05B, kernel, normalize_kernel=True)
+    plt.figure()
+    plt.subplot(211)
+    plt.imshow(np.log(newim05B))
+    plt.subplot(212)
+    plt.imshow(np.log(aimpsf))
 #    ### Save the file ###
-#    hdu = fits.PrimaryHDU(newim05B, header=hdr5)
-#    hdulist = fits.HDUList([hdu])
-#    newfilename = 'new_limited_UDS_' + sem +'_K.fits'
-#    hdulist.writeto(newfilename, overwrite=True)
-#    im05Bfull.close()
-#    del im05Bfull[0].data
-#    end = time.time()
-#    print(end-start)
+    hdu = fits.PrimaryHDU(newim05B, header=hdr5)
+    hdulist = fits.HDUList([hdu])
+    newfilename = 'conv_limited_' + sem +'_K_PSF.fits'
+    hdulist.writeto(newfilename, overwrite=True)
+    im05Bfull.close()
+    del im05Bfull[0].data
+    end = time.time()
+    print(end-start)
 
 for n, sem in enumerate(semesters):
     if sem == semesters[aimind]:
         continue
-    filename = 'UDS_' + sem + '_K.fits'
+    filename = 'PSFs/limited_' + sem + '_K_PSF.fits'
     convolve_image(filename, sigmakernel[n])
 
 end = time.time()

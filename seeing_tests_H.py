@@ -44,47 +44,51 @@ def radial_profile(data, center):
     return radialprofile 
 
 def get_avg_flux(tbdata):
-    flux = vari_funcs.hflux4_stacks(tbdata)
-    flux = vari_funcs.normalise_flux(flux)
+    flux = vari_funcs.h_mag_flux.flux4_stacks(tbdata)
+    flux = vari_funcs.flux_funcs.normalise_flux(flux)
     return np.nanmedian(flux, axis=0)
 
 def psf_and_profile(sem):
     centre = [29,29]
-#    psf = fits.getdata('PSFs/H/extra_clean_no12B_'+sem+'_H_PSF.fits')
-    if sem == '11B':
-        psf = fits.getdata('PSFs/H/cleaned_Kstars_'+sem+'_H_PSF.fits')
+#    psf = fits.getdata('PSFs/H/K_extraction/cleaned_'+sem+'_H_PSF.fits')
+    if sem == '12B':
+        psf = fits.getdata('PSFs/H/K_extraction/cleaned_'+sem+'_H_PSF.fits')
+#    elif sem == '12B':
+#        psf = fits.getdata('PSFs/H/cleaned_Kstars_'+sem+'_H_PSF.fits')
     else:
-        psf = fits.getdata('PSFs/H/extra_clean_no12B_'+sem+'_H_PSF.fits')
+        psf = fits.getdata('PSFs/H/K_extraction/extra_clean_'+sem+'_H_PSF.fits')
 
-    rp = vari_funcs.radial_profile(psf, centre)
+    rp = vari_funcs.correction_funcs.radial_profile(psf, centre)
     return psf, rp, np.sqrt(rp)
 
 def psf_and_profile_old(sem):
     centre = [29,29]
-    psf = fits.getdata('PSFs/H/cleaned_'+sem+'_H_PSF.fits')
+    psf = fits.getdata('PSFs/H/K_extraction/cleaned_'+sem+'_H_PSF.fits')
 #    if sem == '10B':
 #        psf = fits.getdata('PSFs/small_'+sem+'_K_PSF.fits')
 #    else:
 #        psf = fits.getdata('PSFs/matched_'+sem+'_K_PSF.fits')
-    rp = vari_funcs.radial_profile(psf, centre)
+    rp = vari_funcs.correction_funcs.radial_profile(psf, centre)
     return psf, rp, np.sqrt(rp)
 
-semesters = ['06B', '07B', '08B', '09B', '10B', '11B']#, '12B']#
+semesters = ['06B', '07B', '08B', '09B', '10B', '11B', '12B']#
 hdr08B = fits.getheader('Images/UDS-DR11-K.mef.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 r = np.arange(0,42,1) * const * 3600 #define radius values
 centre = [29,29] 
 
 psf_data = fits.open('UDS_catalogues/DR11_stars_for_PSFs.fits')[1].data
-sdata = fits.open('mag_flux_tables/H/stars_mag_flux_table_H_extra_clean_no12B.fits')[1].data
-sdataold = fits.open('mag_flux_tables/H/stars_mag_flux_table_H_cleaned_PSF.fits')[1].data
+sdata = fits.open('mag_flux_tables/H/stars_mag_flux_table_H_extra_clean.fits')[1].data
+sdataold = fits.open('mag_flux_tables/H/H_extraction/stars_mag_flux_table_H_cleaned.fits')[1].data
 #set up time variable for plot
 t = np.linspace(1, 8, num=8)
 years = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']#
-x = [2,3,4,5,6,7]#,8]
+x = [2,3,4,5,6,7,8]
 
 ids = {}
 for sem in semesters:
+    if sem == '12B':
+        continue
     # limit data
     ### Define coordinates ###
     refcoord = SkyCoord(psf_data['ALPHA_J2000_1']*u.degree, psf_data['DELTA_J2000_1']*u.degree)
@@ -112,9 +116,12 @@ tempsdataold = sdataold[oldmask]
 avgFWHM1 = np.zeros(len(semesters))
 avgFWHM2 = np.zeros(len(semesters))
 for n, sem in enumerate(semesters):
+    avgFWHM2[n] = np.nanmedian(tempsdataold['FWHM_WORLD_'+sem]) * 3600
+    if sem == '12B':
+        avgFWHM1[n] = np.nan
+        continue
     tempsdata['FWHM_WORLD_'+sem][tempsdata['FWHM_WORLD_'+sem]==0] = np.nan
     avgFWHM1[n] = np.nanmedian(tempsdata['FWHM_WORLD_'+sem]) * 3600
-    avgFWHM2[n] = np.nanmedian(tempsdataold['FWHM_WORLD_'+sem]) * 3600
 
 ### get average flux ### 
 avgflux1 = get_avg_flux(tempsdata)

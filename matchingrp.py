@@ -12,6 +12,9 @@ from scipy.stats import norm
 from astropy.convolution import Gaussian2DKernel
 from astropy.convolution import convolve
 from photutils import CircularAperture, aperture_photometry
+from astropy.coordinates import match_coordinates_sky
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import vari_funcs
 plt.close('all')
 
@@ -63,7 +66,8 @@ def convolve_one_psf(psf, sigmakernel):
     return newpsf
     
 #sdata = fits.open('mag_flux_tables/stars_mag_flux_table.fits')[1].data
-oldsdata = fits.open('mag_flux_tables/stars_mag_flux_table_cleaned.fits')[1].data
+psf_data = fits.open('UDS_catalogues/DR11_stars_for_PSFs.fits')[1].data
+oldsdata = fits.open('mag_flux_tables/K/stars_mag_flux_table_K_cleaned.fits')[1].data
 hdr08B = fits.getheader('Images/UDS-DR11-K.mef.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 
@@ -81,16 +85,26 @@ oldpsf = {}
 for n, sem in enumerate(semesters):
     # for new
     colnames = colname+sem
+    
+    ### Define coordinates ###
+    refcoord = SkyCoord(psf_data['ALPHA_J2000_1']*u.degree, psf_data['DELTA_J2000_1']*u.degree)
+    semcoord = SkyCoord(oldsdata['ALPHA_J2000_'+sem]*u.degree, oldsdata['DELTA_J2000_'+sem]*u.degree)
+    
+    ### Match catalogues and create new table ###
+    idx, d2d , _ = match_coordinates_sky(refcoord, semcoord) #match these 'good' stars to create table
+    tempsdata = oldsdata[idx]
+    
+    
     # for old
-    oldmag = oldsdata['MAG_APER_'+sem][:,4]
-    mask1 = oldmag > 15 #removes saturated
-    mask2 = oldmag < 19 #removes very faint stars
-    oldmask = mask1 * mask2
-    tempsdata = oldsdata[oldmask]
+    oldmag = tempsdata['MAG_APER_'+sem][:,4]
+#    mask1 = oldmag > 15 #removes saturated
+#    mask2 = oldmag < 19 #removes very faint stars
+#    oldmask = mask1 * mask2
+#    tempsdata = oldsdata[oldmask]
     oldavgFWHM[n] = np.median(tempsdata[colnames]) #* 3600
 #    flux = tempsdata['FLUX_APER_'+sem][:,4]
 #    oldavgflux[n] = np.median(flux)
-    oldpsf[sem] = fits.open('PSFs/cleaned_'+sem+'_K_PSF.fits')[0].data
+    oldpsf[sem] = fits.open('PSFs/K/cleaned_'+sem+'_K_PSF.fits')[0].data
 #    if sem == '10B':
 #        oldpsf[sem] = fits.open('PSFs/limited_'+sem+'_K_PSF.fits')[0].data
 #    else:
@@ -98,8 +112,8 @@ for n, sem in enumerate(semesters):
 
 ## get flux curve
 
-flux = vari_funcs.flux5_stacks(tempsdata)
-flux = vari_funcs.normalise_flux(flux)
+flux = vari_funcs.k_mag_flux.flux5_stacks(tempsdata)
+flux = vari_funcs.flux_funcs.normalise_flux(flux)
 oldavgflux = np.median(flux, axis=0)
    
 ### Find maximum FWHM as this is what all the others willl become ###
@@ -223,4 +237,4 @@ plt.xticks(t, years)
 plt.xlabel('Semester')
 plt.legend()
 plt.tight_layout()
-#np.save('extrascleanedno06', extras)
+#np.save('extrascleanedK_no06', extras)

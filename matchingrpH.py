@@ -66,13 +66,13 @@ def convolve_one_psf(psf, sigmakernel):
     return newpsf
     
 psf_data = fits.open('UDS_catalogues/DR11_stars_for_PSFs.fits')[1].data
-oldsdata = fits.open('mag_flux_tables/H/stars_mag_flux_table_H_cleaned_PSF.fits')[1].data
+oldsdata = fits.open('mag_flux_tables/H/stars_mag_flux_table_H_cleaned.fits')[1].data
 hdr08B = fits.getheader('Images/UDS-DR11-K.mef.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 
 colname = 'FWHM_WORLD_'
 #data = sem05B[colname][:,1]
-semesters = ['06B', '07B', '08B', '09B', '10B', '11B']#, '12B']#['05B','10B']
+semesters = ['06B', '07B', '08B', '09B', '10B', '11B', '12B']#['05B','10B']
 centre = [29,29]
 
 #avgFWHM = np.zeros(len(semesters))
@@ -100,7 +100,7 @@ for n, sem in enumerate(semesters):
     oldavgFWHM[n] = np.median(tempsdata[colnames]) #* 3600
 #    flux = tempsdata['FLUX_APER_'+sem][:,4]
 #    oldavgflux[n] = np.median(flux)
-    oldpsf[sem] = fits.open('PSFs/H/cleaned_Kstars_'+sem+'_H_PSF.fits')[0].data
+    oldpsf[sem] = fits.open('PSFs/H/K_extraction/cleaned_'+sem+'_H_PSF.fits')[0].data
 #    if sem == '10B':
 #        oldpsf[sem] = fits.open('PSFs/limited_'+sem+'_K_PSF.fits')[0].data
 #    else:
@@ -108,8 +108,8 @@ for n, sem in enumerate(semesters):
 
 ## get flux curve
 
-flux = vari_funcs.hflux4_stacks(tempsdata)
-flux = vari_funcs.normalise_flux(flux)
+flux = vari_funcs.h_mag_flux.flux4_stacks(tempsdata)
+flux = vari_funcs.flux_funcs.normalise_flux(flux)
 oldavgflux = np.median(flux, axis=0)
    
 ### Find maximum FWHM as this is what all the others willl become ###
@@ -127,7 +127,7 @@ oldphot = {}
 oldflux = np.zeros(len(semesters))
 
 ### testing the extra factor method ###
-tests =np.linspace(-0.61,0.25,1000)
+tests =np.linspace(-1.15,-0.70,1000)
 #tests =np.linspace(0.7,-1.2,1000)
 r = np.arange(0,42,1) * const * 3600 # define radius values
 
@@ -142,7 +142,7 @@ newflux = np.zeros(len(semesters))
 extras = np.zeros(len(semesters))
 aperflux = np.empty(len(semesters))
 oldaperflux = np.empty(len(semesters))
-pixelr = (1.5/3600) / const
+pixelr = (1/3600) / const
 aperture = CircularAperture(centre, pixelr)
 t = np.linspace(1, 8, num=8)
 
@@ -313,7 +313,7 @@ for n, sem in enumerate(semesters):
 #    sigmafinal = np.sqrt(sigsq) + extras[n]
 #    print(str(sigmafinal))
 
-x = [2,3,4,5,6,7]#,8]
+x = [2,3,4,5,6,7,8]
 years = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']
 plt.figure(figsize=[9,6])
 plt.plot(x, aperflux,'o-', label='new')
@@ -322,4 +322,4 @@ plt.xticks(t, years)
 plt.xlabel('Semester')
 plt.legend()
 plt.tight_layout()
-np.save('extrascleanedH_no12B', extras)
+np.save('extrascleanedH_K_extraction', extras)

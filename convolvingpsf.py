@@ -14,15 +14,15 @@ import numpy as np #for handling arrays
 from astropy.convolution import convolve
 from photutils import create_matching_kernel, TopHatWindow, CosineBellWindow
 import matplotlib.pyplot as plt
-
+plt.close('all')
     
 sdata = fits.open('mag_flux_tables/stars_mag_flux_table.fits')[1].data
-hdr08B = fits.getheader('UDS_08B_K.fits') # random year (same in all)
+hdr08B = fits.getheader('Images/UDS_08B_K.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 
 colname = 'FWHM_WORLD_'
 #data = sem05B[colname][:,1]
-sems = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']
+sems = ['05B', '06B']#, '07B', '08B', '09B', '10B', '11B', '12B']
 
 #Extract the flux radii and remove negative values
 avgFWHM = np.zeros(8)
@@ -42,22 +42,24 @@ aimind = np.argmax(avgFWHM)
 aimsem = sems[aimind]
 psf = {}
 
-for sem in sems:
-    psf[semester] = fits.open('limited_'+sem+'_K_PSF.fits')[0].data
+for semester in sems:
+    psf[semester] = fits.open('PSFs/small_'+semester+'_K_PSF.fits')[0].data
     
-aimpsf = psf[aimind]
+aimpsf = psf[aimsem]
 
 for semester in sems:
     if semester == aimsem:
 #        plt.figure()
 #        plt.imshow(np.log(psf[semester]))
         continue
-    kernel = create_matching_kernel(psf[semester], aimpsf, window=CosineBellWindow(0.35))
+    kernel = create_matching_kernel(psf[semester], aimpsf, window=TopHatWindow(0.5))
     
     plt.figure()
     plt.subplot(121)
+#    plt.imshow(kernel)
     plt.imshow(np.log(kernel))
     plt.subplot(122)
+#    plt.imshow(psf[semester])
     plt.imshow(np.log(psf[semester]))
 #    ### Open image ###
 #    im05Bfull = fits.open('UDS_'+semester+'_K.fits', memmap=True)

@@ -114,7 +114,8 @@ for sem in semesters:
     plt.xlabel('MAG_APER[4]')
     plt.ylabel('MAG_APER[4] - MAG_APER[1]')
     plt.xlim(xmax=21, xmin=10)
-    plt.ylim(ymax=0, ymin=-2.5)
+    plt.ylim(ymax=-0.4, ymin=-1)
+#    plt.ylim(ymax=0, ymin=-2.5)
     plt.title(sem+' H')
     
 #    Kx, Ky, allKx, allKy = get_star_data(Ksdata, Kdata, sem)

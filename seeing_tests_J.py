@@ -44,24 +44,24 @@ def radial_profile(data, center):
     return radialprofile 
 
 def get_avg_flux(tbdata):
-    flux = vari_funcs.k_mag_flux.flux5_stacks(tbdata)
+    flux = vari_funcs.j_mag_flux.flux4_stacks(tbdata)
     flux = vari_funcs.flux_funcs.normalise_flux(flux)
     return np.nanmedian(flux, axis=0)
 
 def psf_and_profile(sem):
     centre = [29,29]
 #    psf = fits.getdata('PSFs/cleaned_'+sem+'_K_PSF.fits')
-    if sem == '10B':
-        psf = fits.getdata('PSFs/K/cleaned_'+sem+'_K_PSF.fits')
+    if sem == '06B':
+        psf = fits.getdata('PSFs/J/K_extraction/cleaned_'+sem+'_J_PSF.fits')
     else:
-        psf = fits.getdata('PSFs/K/extra_clean_'+sem+'_K_PSF.fits')
+        psf = fits.getdata('PSFs/J/K_extraction/extra_clean_'+sem+'_J_PSF.fits')
 
     rp = vari_funcs.correction_funcs.radial_profile(psf, centre)
     return psf, rp, np.sqrt(rp)
 
 def psf_and_profile_old(sem):
     centre = [29,29]
-    psf = fits.getdata('PSFs/K/cleaned_'+sem+'_K_PSF.fits')
+    psf = fits.getdata('PSFs/J/K_extraction/cleaned_'+sem+'_J_PSF.fits')
 #    if sem == '10B':
 #        psf = fits.getdata('PSFs/small_'+sem+'_K_PSF.fits')
 #    else:
@@ -69,43 +69,47 @@ def psf_and_profile_old(sem):
     rp = vari_funcs.correction_funcs.radial_profile(psf, centre)
     return psf, rp, np.sqrt(rp)
 
-semesters = ['05B','07B', '08B', '09B', '10B', '11B', '12B']#'06B', 
+semesters = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']#
 hdr08B = fits.getheader('Images/UDS-DR11-K.mef.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 r = np.arange(0,42,1) * const * 3600 #define radius values
 centre = [29,29] 
 
 psf_data = fits.open('UDS_catalogues/DR11_stars_for_PSFs.fits')[1].data
-sdata = fits.open('mag_flux_tables/K/stars_mag_flux_table_K_extra_clean.fits')[1].data
-sdataold = fits.open('mag_flux_tables/K/stars_mag_flux_table_K_cleaned.fits')[1].data
+sdata = fits.open('mag_flux_tables/J/stars_mag_flux_table_J_extra_clean.fits')[1].data
+sdataold = fits.open('mag_flux_tables/J/stars_mag_flux_table_J_cleaned.fits')[1].data
 #set up time variable for plot
 t = np.linspace(1, 8, num=8)
 years = ['05B','06B', '07B', '08B', '09B', '10B', '11B', '12B']#
-x = [1,3,4,5,6,7,8]
+x = [1,2,3,4,5,6,7,8]
 
-#ids = {}
+ids = {}
 for sem in semesters:
     # limit data
     ### Define coordinates ###
     refcoord = SkyCoord(psf_data['ALPHA_J2000_1']*u.degree, psf_data['DELTA_J2000_1']*u.degree)
     semcoord = SkyCoord(sdata['ALPHA_J2000_'+sem]*u.degree, sdata['DELTA_J2000_'+sem]*u.degree)
-    
+    semcoordold = SkyCoord(sdataold['ALPHA_J2000_'+sem]*u.degree, sdataold['DELTA_J2000_'+sem]*u.degree)
+
     ### Match catalogues and create new table ###
     idx, d2d , _ = match_coordinates_sky(refcoord, semcoord) #match these 'good' stars to create table
-
+    tempsdata = sdata[idx]
+    idxold, d2dold , _ = match_coordinates_sky(refcoord, semcoordold) #match these 'good' stars to create table
+    tempsdataold = sdataold[idx]
+    
 #    mag = sdata['MAG_APER_'+sem][:,4]
 #    mask1 = mag > 15 #removes saturated
 #    mask2 = mag < 19 #removes very faint stars
 #    mask = mask1 * mask2
-    if sem == '05B':
-        ids = sdata['NUMBER_05B'][idx]
-    else:
-        ids = np.intersect1d(ids, sdata['NUMBER_05B'][idx])
+#    if sem == '05B':
+#        ids = sdata['NUMBER_05B'][mask]
+#    else:
+#        ids = np.intersect1d(ids, sdata['NUMBER_05B'][mask])
 
-mask = np.isin(sdata['NUMBER_05B'], ids)
-oldmask = np.isin(sdataold['NUMBER_05B'], ids)
-tempsdata = sdata[mask] 
-tempsdataold = sdataold[mask]
+#mask = np.isin(sdata['NUMBER_05B'], ids)
+#oldmask = np.isin(sdataold['NUMBER_05B'], ids)
+#tempsdata = sdata[mask] 
+#tempsdataold = sdataold[mask]
 print(len(tempsdata['MAG_APER_'+sem][:,4]))
 
 ### get average FWHM ###
@@ -142,13 +146,13 @@ for m, sem in enumerate(semesters):
     aperfluxold[m] = photold['aperture_sum'][0]
     ### Plot the psfs ###
     plt.figure(5, figsize=[10,2])
-    plt.subplot(1,7,m+1)
+    plt.subplot(1,8,m+1)
     plt.imshow(np.log(psf[sem]), vmax=-4.0, vmin=-20)
     vari_funcs.no_ticks()
     plt.title(sem)
     plt.tight_layout()
     plt.figure(7, figsize=[10,2])
-    plt.subplot(1,7,m+1)
+    plt.subplot(1,8,m+1)
     plt.imshow(np.log(psfold[sem]), vmax=-4.0, vmin=-20)
     vari_funcs.no_ticks()
     plt.title(sem)
@@ -158,7 +162,7 @@ for m, sem in enumerate(semesters):
 plt.figure(1, figsize=[6,5])
 plt.plot(x,avgFWHM2,'s-',label='Before', markersize=8)
 plt.plot(x,avgFWHM1,'o-',label='After')
-plt.ylim(ymax=0.87, ymin=0.70)
+#plt.ylim(ymax=0.87, ymin=0.70)
 plt.xticks(t, years)
 plt.ylabel('FWHM')
 plt.xlabel('Semester')
@@ -178,8 +182,8 @@ plt.tight_layout()
 #
 ### Plot radial profiles ###
 plt.figure(3, figsize=[10,7])
-base = rp['10B']
-baseold = rpold['10B']
+base = rp['06B']
+baseold = rpold['06B']
 for sem in sqrtrp:
     plt.figure(3)
     plt.subplot(212)

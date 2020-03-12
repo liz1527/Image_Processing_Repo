@@ -51,17 +51,17 @@ def get_avg_flux(tbdata):
 def psf_and_profile(sem):
     centre = [29,29]
 #    psf = fits.getdata('PSFs/cleaned_'+sem+'_K_PSF.fits')
-    if sem == '10B':
-        psf = fits.getdata('PSFs/K/cleaned_'+sem+'_K_PSF.fits')
+    if sem == 'dec06':
+        psf = fits.getdata('PSFs/K/month/cleaned_'+sem+'_K_PSF.fits')
     else:
-        psf = fits.getdata('PSFs/K/extra_clean_'+sem+'_K_PSF.fits')
+        psf = fits.getdata('PSFs/K/month/extra_clean_'+sem+'_K_PSF.fits')
 
     rp = vari_funcs.correction_funcs.radial_profile(psf, centre)
     return psf, rp, np.sqrt(rp)
 
 def psf_and_profile_old(sem):
     centre = [29,29]
-    psf = fits.getdata('PSFs/K/cleaned_'+sem+'_K_PSF.fits')
+    psf = fits.getdata('PSFs/K/month/cleaned_'+sem+'_K_PSF.fits')
 #    if sem == '10B':
 #        psf = fits.getdata('PSFs/small_'+sem+'_K_PSF.fits')
 #    else:
@@ -69,22 +69,37 @@ def psf_and_profile_old(sem):
     rp = vari_funcs.correction_funcs.radial_profile(psf, centre)
     return psf, rp, np.sqrt(rp)
 
-semesters = ['05B','07B', '08B', '09B', '10B', '11B', '12B']#'06B', 
+#semesters = ['05B','07B', '08B', '09B', '10B', '11B', '12B']#'06B', 
+months = ['sep05','oct05','nov05','dec05', 'jan06', 'dec06', 'jan07',  
+          'aug07', 'sep07', 'oct07', 'sep08', 'oct08', 'nov08', 'jul09',  
+          'aug09', 'sep09', 'oct09', 'nov09', 'dec09', 'jan10', 'feb10', 
+          'aug10', 'sep10', 'oct10', 'nov10', 'dec10', 'jan11', 'feb11', 
+          'aug11', 'sep11', 'oct11', 'nov11', 'dec11', 'jan12', 'feb12', 
+          'jul12', 'aug12', 'sep12', 'oct12', 'nov12']
 hdr08B = fits.getheader('Images/UDS-DR11-K.mef.fits') # random year (same in all)
 const = -hdr08B['CD1_1'] # constant that defines unit conversion for FWHM
 r = np.arange(0,42,1) * const * 3600 #define radius values
 centre = [29,29] 
 
 psf_data = fits.open('UDS_catalogues/DR11_stars_for_PSFs.fits')[1].data
-sdata = fits.open('mag_flux_tables/K/stars_mag_flux_table_K_extra_clean.fits')[1].data
-sdataold = fits.open('mag_flux_tables/K/stars_mag_flux_table_K_cleaned.fits')[1].data
-#set up time variable for plot
-t = np.linspace(1, 8, num=8)
-years = ['05B','06B', '07B', '08B', '09B', '10B', '11B', '12B']#
-x = [1,3,4,5,6,7,8]
+sdata = fits.open('mag_flux_tables/K/month/month_stars_mag_flux_table_K_extra_clean.fits')[1].data
+sdataold = fits.open('mag_flux_tables/K/month/month_stars_mag_flux_table_K_cleaned.fits')[1].data
 
-#ids = {}
-for sem in semesters:
+### set up month tick details ###
+month_info = fits.open('monthly_numbers.fits')[1].data #get month count data
+full_months = month_info['Month'] #extract month nanes
+tick_inds = np.load('tick_inds_K.npy') #load tick locations
+mask = np.zeros(len(full_months)) #set up mask
+mask[tick_inds] = 1
+mask = mask.astype(bool)
+month_ticks = np.copy(full_months)
+month_ticks = month_ticks[mask]#retrieve tick details
+
+x = np.arange(0, len(month_info['Frames in v11']))
+mask = np.isin(full_months, months)
+x_months = x[mask]
+
+for sem in months:
     # limit data
     ### Define coordinates ###
     refcoord = SkyCoord(psf_data['ALPHA_J2000_1']*u.degree, psf_data['DELTA_J2000_1']*u.degree)
@@ -97,28 +112,28 @@ for sem in semesters:
 #    mask1 = mag > 15 #removes saturated
 #    mask2 = mag < 19 #removes very faint stars
 #    mask = mask1 * mask2
-    if sem == '05B':
-        ids = sdata['NUMBER_05B'][idx]
+    if sem == 'sep05':
+        ids = sdata['NUMBER'][idx]
     else:
-        ids = np.intersect1d(ids, sdata['NUMBER_05B'][idx])
+        ids = np.intersect1d(ids, sdata['NUMBER'][idx])
 
-mask = np.isin(sdata['NUMBER_05B'], ids)
-oldmask = np.isin(sdataold['NUMBER_05B'], ids)
+mask = np.isin(sdata['NUMBER'], ids)
+oldmask = np.isin(sdataold['NUMBER'], ids)
 tempsdata = sdata[mask] 
 tempsdataold = sdataold[mask]
 print(len(tempsdata['MAG_APER_'+sem][:,4]))
 
 ### get average FWHM ###
-avgFWHM1 = np.zeros(len(semesters))
-avgFWHM2 = np.zeros(len(semesters))
-for n, sem in enumerate(semesters):
+avgFWHM1 = np.zeros(len(months))
+avgFWHM2 = np.zeros(len(months))
+for n, sem in enumerate(months):
     tempsdata['FWHM_WORLD_'+sem][tempsdata['FWHM_WORLD_'+sem]==0] = np.nan
     avgFWHM1[n] = np.nanmedian(tempsdata['FWHM_WORLD_'+sem]) * 3600
     avgFWHM2[n] = np.nanmedian(tempsdataold['FWHM_WORLD_'+sem]) * 3600
 
-### get average flux ### 
-avgflux1 = get_avg_flux(tempsdata)
-avgflux2 = get_avg_flux(tempsdataold)
+#### get average flux ### 
+#avgflux1 = get_avg_flux(tempsdata)
+#avgflux2 = get_avg_flux(tempsdataold)
 
 ### get psfs, aper flux, and profiles ###
 pixelr = (1.5/3600) / const
@@ -127,12 +142,12 @@ smallaperture = CircularAperture(centre, pixelr)
 psf = {}
 rp = {}
 sqrtrp = {}
-aperflux = np.empty(len(semesters))
+aperflux = np.empty(len(months))
 psfold = {}
 rpold = {}
 sqrtrpold = {}
-aperfluxold = np.empty(len(semesters))
-for m, sem in enumerate(semesters):
+aperfluxold = np.empty(len(months))
+for m, sem in enumerate(months):
     psf[sem], rp[sem], sqrtrp[sem] = psf_and_profile(sem)
     psfold[sem], rpold[sem], sqrtrpold[sem] = psf_and_profile_old(sem)
     ### Determine flux within 3 arcsec apertures ###
@@ -141,61 +156,61 @@ for m, sem in enumerate(semesters):
     aperflux[m] = phot['aperture_sum'][0]
     aperfluxold[m] = photold['aperture_sum'][0]
     ### Plot the psfs ###
-    plt.figure(5, figsize=[10,2])
-    plt.subplot(1,7,m+1)
-    plt.imshow(np.log(psf[sem]), vmax=-4.0, vmin=-20)
-    vari_funcs.no_ticks()
-    plt.title(sem)
-    plt.tight_layout()
-    plt.figure(7, figsize=[10,2])
-    plt.subplot(1,7,m+1)
-    plt.imshow(np.log(psfold[sem]), vmax=-4.0, vmin=-20)
-    vari_funcs.no_ticks()
-    plt.title(sem)
-    plt.tight_layout()
+#    plt.figure(5, figsize=[10,2])
+#    plt.subplot(1,7,m+1)
+#    plt.imshow(np.log(psf[sem]), vmax=-4.0, vmin=-20)
+#    vari_funcs.no_ticks()
+#    plt.title(sem)
+#    plt.tight_layout()
+#    plt.figure(7, figsize=[10,2])
+#    plt.subplot(1,7,m+1)
+#    plt.imshow(np.log(psfold[sem]), vmax=-4.0, vmin=-20)
+#    vari_funcs.no_ticks()
+#    plt.title(sem)
+#    plt.tight_layout()
         
 ### Plot FWHM curves ###
-plt.figure(1, figsize=[6,5])
-plt.plot(x,avgFWHM2,'s-',label='Before', markersize=8)
-plt.plot(x,avgFWHM1,'o-',label='After')
-plt.ylim(ymax=0.87, ymin=0.70)
-plt.xticks(t, years)
+plt.figure(1, figsize=[9,6])
+plt.plot(x_months,avgFWHM2,'s-',label='Before', markersize=8)
+plt.plot(x_months,avgFWHM1,'o-',label='After')
+#plt.ylim(ymax=0.87, ymin=0.70)
+plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
 plt.ylabel('FWHM')
-plt.xlabel('Semester')
+plt.xlabel('Month')
 plt.legend()
 plt.tight_layout()
 
 #### Plot median flux curves ###
 #plt.figure(2, figsize=[9,6])
-#plt.plot(x,avgflux2,'s-',label='old', markersize=8)
-#plt.plot(x,avgflux1,'o-',label='new')
+#plt.plot(x_months,avgflux2,'s-',label='old', markersize=8)
+#plt.plot(x_months,avgflux1,'o-',label='new')
 #plt.ylabel('Median Flux of stars')
 ##plt.ylim(ymax=1.015, ymin=0.985)
-#plt.xticks(t, years)
-#plt.xlabel('Semester')
+#plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
+#plt.xlabel('Month')
 #plt.legend()
 #plt.tight_layout()
 #
 ### Plot radial profiles ###
 plt.figure(3, figsize=[10,7])
-base = rp['10B']
-baseold = rpold['10B']
+base = rp['dec06']
+baseold = rpold['dec06']
 for sem in sqrtrp:
     plt.figure(3)
     plt.subplot(212)
     plt.plot(r, sqrtrp[sem], label=sem+' after')
     plt.xlabel('Radius (arcsec)')
     plt.ylabel('sqrt(Flux)')
-    plt.ylim(ymax=0.16, ymin=0)
+    plt.ylim(ymax=0.17, ymin=0)
     plt.xlim(xmax=2, xmin=0)
-    plt.legend()
+#    plt.legend()
     plt.subplot(211)
     plt.plot(r, sqrtrpold[sem],'--', label=sem+' before')
     plt.xlabel('Radius (arcsec)')
     plt.ylabel('sqrt(Flux)')
-    plt.ylim(ymax=0.16, ymin=0)
+    plt.ylim(ymax=0.17, ymin=0)
     plt.xlim(xmax=2, xmin=0)
-    plt.legend()
+#    plt.legend()
     plt.tight_layout()
     
     ### figure out differences ###
@@ -208,16 +223,16 @@ for sem in sqrtrp:
     plt.plot(r, diff, label=sem+' after')
     plt.xlabel('Radius (arcsec)')
     plt.ylabel('$Flux_{sem} - Flux_{10B}$')
-    plt.ylim(ymax=0.005, ymin=-0.002)
+    plt.ylim(ymax=0.011, ymin=-0.002)
     plt.xlim(xmax=2, xmin=0)
-    plt.legend(loc='upper right')
+#    plt.legend(loc='upper right')
     plt.subplot(211)
     plt.plot(r, diffold,'--', label=sem+' before')
     plt.xlabel('Radius (arcsec)')
     plt.ylabel('$Flux_{sem} - Flux_{10B}$')
-    plt.ylim(ymax=0.005, ymin=-0.002)
+    plt.ylim(ymax=0.011, ymin=-0.002)
     plt.xlim(xmax=2, xmin=0)
-    plt.legend(loc='upper right')
+#    plt.legend(loc='upper right')
     plt.tight_layout()
 
 #
