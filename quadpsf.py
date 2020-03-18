@@ -68,58 +68,58 @@ def quadrants(initdata):
     
     return quad1data, quad2data, quad3data, quad4data
 
-# reads in file with stamps
+## reads in file with stamps
 data = fits.open('star_stamps_tables/small_'+sem+'_star_stamps_table.fits')[1].data
-
-# limit magnitude range used in PSF
-mag = data['MAG_APER'][:,5]
-mask1 = mag > 15
-mask2 = mag < 19
-mask = mask1*mask2
-
-data = data[mask]
-
-print(len(data))
-
+#
+## limit magnitude range used in PSF
+#mag = data['MAG_APER'][:,5]
+#mask1 = mag > 15
+#mask2 = mag < 19
+#mask = mask1*mask2
+#
+#data = data[mask]
+#
+#print(len(data))
+#
 #squad1data, squad2data, squad3data, squad4data = quadrants(data, data)
 quaddata = quadrants(data)
-
+#
 ### Plot to check ###
 
 plt.scatter(quaddata[0]['X_IMAGE'],quaddata[0]['Y_IMAGE'],c='r',zorder=3)
 plt.scatter(quaddata[1]['X_IMAGE'],quaddata[1]['Y_IMAGE'],c='b',zorder=3)
 plt.scatter(quaddata[2]['X_IMAGE'],quaddata[2]['Y_IMAGE'],c='m',zorder=3)
 plt.scatter(quaddata[3]['X_IMAGE'],quaddata[3]['Y_IMAGE'],c='k',zorder=3)
-
-for n, quad in enumerate(quaddata):
-    # extract stamps column and set non source regions to nans
-    stamps = quad['VIGNET']
-    stamps[stamps<-5e29] = np.nan
-    
-    # Plot some stars- not sure why, just for demonstration?
-    #plt.figure()
-    #plt.imshow(np.log(data['VIGNET'][24]))
-    #plt.figure()
-    #plt.imshow(np.log(stamps[1000,:,:]))
-    
-    # Normalse all of the images - I presume to 1? Can't really see the difference...?
-    stampsnorm = stamps
-    for i in range(stamps.shape[0]):
-        stampsnorm[i,:,:] = norm(stamps[i,:,:])
-    
-    # find the median image
-    stack = np.nanmedian(stampsnorm, axis=0)
-    
-    # print shape to check its right?
-    print(stack.shape)
-    
-    #normalise and plot the median image
-    stack = norm(stack)
-#    plt.figure(2)
-#    plt.subplot(2,2,n+1)
-#    plt.imshow(np.log(stack))
-    
-    hdu = fits.PrimaryHDU(stack)
-    hdu.writeto(sem+'_'+str(n+1)+'_K_PSF.fits', overwrite=True)
+#
+#for n, quad in enumerate(quaddata):
+#    # extract stamps column and set non source regions to nans
+#    stamps = quad['VIGNET']
+#    stamps[stamps<-5e29] = np.nan
 #    
+#    # Plot some stars- not sure why, just for demonstration?
+#    #plt.figure()
+#    #plt.imshow(np.log(data['VIGNET'][24]))
+#    #plt.figure()
+#    #plt.imshow(np.log(stamps[1000,:,:]))
+#    
+#    # Normalse all of the images - I presume to 1? Can't really see the difference...?
+#    stampsnorm = stamps
+#    for i in range(stamps.shape[0]):
+#        stampsnorm[i,:,:] = norm(stamps[i,:,:])
+#    
+#    # find the median image
+#    stack = np.nanmedian(stampsnorm, axis=0)
+#    
+#    # print shape to check its right?
+#    print(stack.shape)
+#    
+#    #normalise and plot the median image
+#    stack = norm(stack)
+##    plt.figure(2)
+##    plt.subplot(2,2,n+1)
+##    plt.imshow(np.log(stack))
+#    
+#    hdu = fits.PrimaryHDU(stack)
+#    hdu.writeto(sem+'_'+str(n+1)+'_K_PSF.fits', overwrite=True)
+##    
     # This image is the typical PSF of the stack - can be used to create a matching kernel

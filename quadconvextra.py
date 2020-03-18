@@ -46,7 +46,7 @@ def quadrants(initdata,sem):
     
     mask1 = ira >= midra
     mask2 = idec < middec
-    quad4data = initdata[mask1*mask2]
+    quad4data = initdata[mask1*mask2]    
     
     return quad1data, quad2data, quad3data, quad4data
 hdr08B = fits.getheader('Images/UDS_08B_K.fits') # random year (same in all)
