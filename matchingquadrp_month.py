@@ -130,14 +130,14 @@ x = np.arange(1, len(month_info['Frames in v11'])+1)
 mask = np.isin(full_months, months)
 x_months = x[mask]
 
-avgFWHM = np.zeros(len(months))
-oldavgFWHM = np.zeros(len(months))
+oldavgFWHM = np.zeros(len(quads))
 avgflux = np.zeros(len(months))
 extras = np.zeros([len(months),4]) + 99# 4 columns, 1 per quad, 99 is null
 #oldavgflux = np.zeros(len(months))
 psf = {}
 oldpsf = {}
 for i, mon in enumerate(months):
+    print(mon)
     # for new
     colnames = colname+mon
     
@@ -150,6 +150,7 @@ for i, mon in enumerate(months):
     ### Match catalogues and create new table ###
     idx, d2d , _ = match_coordinates_sky(refcoord, moncoord) 
     tempsdata = oldsdata[idx]
+    print(len(tempsdata))
     
     ### get quaddata
     quaddata = quadrants(tempsdata,mon)
@@ -168,140 +169,143 @@ for i, mon in enumerate(months):
     aimquad = quads[aimind]
     aimpsf = oldpsf[aimquad]
     
-    ### Convert FWHM into a sigma ###
-    sigmaold = np.array([FWHM2sigma(fwhm, const) for fwhm in oldavgFWHM])
-    sigmabroad = sigmaold[aimind]
+#    print(oldavgFWHM)
+    print(aimind)
     
-    phot = {}
-    flux = np.zeros(len(months))
-    oldphot = {}
-    oldflux = np.zeros(len(months))
-    
-    ### testing the extra factor method ###
-    tests =np.linspace(-1,0.5,1000)
-    r = np.arange(0,42,1) * const * 3600 # define radius values
-    
-    #flux10B = oldflux[3]
-    aimrp = radial_profile(oldpsf[aimquad], centre)
-    sqrtaimrp = np.sqrt(aimrp)
-    
-    
-    newpsf = {}
-    newphot = {}
-    newflux = np.zeros(len(months))
-    aperflux = np.empty(len(months))
-    oldaperflux = np.empty(len(months))
-    pixelr = (1.5/3600) / const
-    aperture = CircularAperture(centre, pixelr)
-    t = np.linspace(1, 8, num=8)
-    
-    plt.figure(1, figsize=[9,6])
-    plt.plot(r, sqrtaimrp,label=aimquad)   
-    
-    for n, quad in enumerate(quads):
-        if quad == aimquad:
-#            phot = aperture_photometry(aimpsf, aperture)
-#            aperflux[n] = phot['aperture_sum'][0]
-#            oldaperflux[n] = phot['aperture_sum'][0]
-    #        plt.figure()
-    #        plt.imshow(aimpsf)
-    #        vari_funcs.no_ticks()
-            continue
-        sigma = sigmaold[n]
-        singlephot = {}
-        singleflux = np.zeros(len(tests))
-        sumdiffold = 10
-        for m, extra in enumerate(tests):
-    #        print(extra)
-            sigmakernel = np.sqrt(sigmabroad**2 - sigma**2) + extra
-            if sigmakernel <= 0:
-                continue
-            new = convolve_one_psf(oldpsf[quad], sigmakernel)    
-            
-            ### Get radial profile ###
-            radialprofile = radial_profile(new, centre)
-            sqrtrp = np.sqrt(radialprofile)
-            
-            diff = aimrp[:12] - radialprofile[:12]
-            sumdiff = np.nansum(diff)
-    #        plt.figure(1)
-    ##            plt.subplot(4,2,n+1)
-    ##            plt.plot(r, sqrtaimrp,label='10B')    
-    #        plt.plot(r,sqrtrp, '--', label=mon+' '+str(extra))
-    #        plt.ylabel('sqrt(Flux)')
-    #        plt.xlabel('Radius (arcsec)')
-    #        plt.legend()
-    #        print(sumdiff)
-            if sumdiff > 0:
-                if sumdiffold < sumdiff:
-                    print('extra ='+str(tests[m-1]))
-                    extras[i,n] = tests[m-1]
-    #                plt.plot(t[n], singleflux[m-1],'o', label=extras[n])
-                else:
-                    print('extra ='+str(extra))
-                    extras[i,n] = extra    
-                
-#                plt.figure(1, figsize=[9,6])
-#    #            plt.subplot(4,2,n+1)
-#    #            plt.plot(r, sqrtaimrp,label='10B')    
-#                plt.plot(r,sqrtrp, '--', label=str(n)+' '+str(extra))
-#                plt.ylabel('sqrt(Flux)')
-#                plt.xlabel('Radius (arcsec)')
-#                plt.title(mon)
-#                plt.xlim(xmax=2.5)
-#    #            plt.legend()    
-#                plt.tight_layout()
+#    ### Convert FWHM into a sigma ###
+#    sigmaold = np.array([FWHM2sigma(fwhm, const) for fwhm in oldavgFWHM])
+#    sigmabroad = sigmaold[aimind]
 #    
-#                plt.figure(2, figsize=[9,6])
-#                plt.plot(r[:12], diff, label=str(n))
-#                plt.ylim(ymax=0.005, ymin=-0.002)
-#                plt.hlines(0,0,1.5)
-#                plt.xlim(xmin=0, xmax=1.5)
-#    #            plt.legend()
-#                plt.ylabel('Difference from aim rp')
-#                plt.xlabel('Radius (arcsec)')
-#                plt.title(mon)
-#                plt.tight_layout()
-    
-                phot = aperture_photometry(new, aperture)
-                aperflux[n] = phot['aperture_sum'][0]
-                oldphot = aperture_photometry(oldpsf[quad], aperture)
-                oldaperflux[n] = oldphot['aperture_sum'][0]
-                
-    #            plt.figure()
-    #            plt.subplot(121)
-    #            plt.imshow(np.log(oldpsf[mon]))
-    #            vari_funcs.no_ticks()
-    #            
-    #            plt.subplot(122)
-    #            plt.imshow(np.log(new))
-    #            vari_funcs.no_ticks()
-                break
-            else:
-                sumdiffold = sumdiff       
-#    plt.figure(1)
-#    plt.savefig('month_stacks/quad_rp_matching/sqrtrp/'+mon+'_sqrtrp.png')
-#    plt.close(1)
+#    phot = {}
+#    flux = np.zeros(len(months))
+#    oldphot = {}
+#    oldflux = np.zeros(len(months))
 #    
-#    plt.figure(2)
-#    plt.savefig('month_stacks/quad_rp_matching/rpdiff/'+mon+'_rpdiff.png')
-#    plt.close(2)
-#
-##x = [1,3,4,5,6,7,8]
-###years = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']
-#plt.figure(figsize=[9,6])
-#plt.plot(x_months, aperflux,'o-', label='new')
-#plt.plot(x_months, oldaperflux, 'o-', label='old')
-#plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
-#plt.xlabel('Month')
-#plt.legend()
-#plt.tight_layout()
-#
-#plt.figure(figsize=[9,6])
-#plt.plot(x_months, oldavgFWHM, 'o-', label='old')
-#plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
-#plt.xlabel('Month')
-#plt.legend()
-#plt.tight_layout()
-#
-#np.save('extrascleanedK_quad_month', extras)
+#    ### testing the extra factor method ###
+#    tests =np.linspace(-1,0.5,1000)
+#    r = np.arange(0,42,1) * const * 3600 # define radius values
+#    
+#    #flux10B = oldflux[3]
+#    aimrp = radial_profile(oldpsf[aimquad], centre)
+#    sqrtaimrp = np.sqrt(aimrp)
+#    
+#    
+#    newpsf = {}
+#    newphot = {}
+#    newflux = np.zeros(len(months))
+#    aperflux = np.empty(len(months))
+#    oldaperflux = np.empty(len(months))
+#    pixelr = (1.5/3600) / const
+#    aperture = CircularAperture(centre, pixelr)
+#    t = np.linspace(1, 8, num=8)
+#    
+#    plt.figure(1, figsize=[9,6])
+#    plt.plot(r, sqrtaimrp,label=aimquad)   
+#    
+#    for n, quad in enumerate(quads):
+#        if quad == aimquad:
+##            phot = aperture_photometry(aimpsf, aperture)
+##            aperflux[n] = phot['aperture_sum'][0]
+##            oldaperflux[n] = phot['aperture_sum'][0]
+#    #        plt.figure()
+#    #        plt.imshow(aimpsf)
+#    #        vari_funcs.no_ticks()
+#            continue
+#        sigma = sigmaold[n]
+#        singlephot = {}
+#        singleflux = np.zeros(len(tests))
+#        sumdiffold = 10
+#        for m, extra in enumerate(tests):
+#    #        print(extra)
+#            sigmakernel = np.sqrt(sigmabroad**2 - sigma**2) + extra
+#            if sigmakernel <= 0:
+#                continue
+#            new = convolve_one_psf(oldpsf[quad], sigmakernel)    
+#            
+#            ### Get radial profile ###
+#            radialprofile = radial_profile(new, centre)
+#            sqrtrp = np.sqrt(radialprofile)
+#            
+#            diff = aimrp[:12] - radialprofile[:12]
+#            sumdiff = np.nansum(diff)
+#    #        plt.figure(1)
+#    ##            plt.subplot(4,2,n+1)
+#    ##            plt.plot(r, sqrtaimrp,label='10B')    
+#    #        plt.plot(r,sqrtrp, '--', label=mon+' '+str(extra))
+#    #        plt.ylabel('sqrt(Flux)')
+#    #        plt.xlabel('Radius (arcsec)')
+#    #        plt.legend()
+#    #        print(sumdiff)
+#            if sumdiff > 0:
+#                if sumdiffold < sumdiff:
+##                    print('extra ='+str(tests[m-1]))
+#                    extras[i,n] = tests[m-1]
+#    #                plt.plot(t[n], singleflux[m-1],'o', label=extras[n])
+#                else:
+##                    print('extra ='+str(extra))
+#                    extras[i,n] = extra    
+#                
+##                plt.figure(1, figsize=[9,6])
+##    #            plt.subplot(4,2,n+1)
+##    #            plt.plot(r, sqrtaimrp,label='10B')    
+##                plt.plot(r,sqrtrp, '--', label=str(n)+' '+str(extra))
+##                plt.ylabel('sqrt(Flux)')
+##                plt.xlabel('Radius (arcsec)')
+##                plt.title(mon)
+##                plt.xlim(xmax=2.5)
+##    #            plt.legend()    
+##                plt.tight_layout()
+##    
+##                plt.figure(2, figsize=[9,6])
+##                plt.plot(r[:12], diff, label=str(n))
+##                plt.ylim(ymax=0.005, ymin=-0.002)
+##                plt.hlines(0,0,1.5)
+##                plt.xlim(xmin=0, xmax=1.5)
+##    #            plt.legend()
+##                plt.ylabel('Difference from aim rp')
+##                plt.xlabel('Radius (arcsec)')
+##                plt.title(mon)
+##                plt.tight_layout()
+#    
+#                phot = aperture_photometry(new, aperture)
+#                aperflux[n] = phot['aperture_sum'][0]
+#                oldphot = aperture_photometry(oldpsf[quad], aperture)
+#                oldaperflux[n] = oldphot['aperture_sum'][0]
+#                
+#    #            plt.figure()
+#    #            plt.subplot(121)
+#    #            plt.imshow(np.log(oldpsf[mon]))
+#    #            vari_funcs.no_ticks()
+#    #            
+#    #            plt.subplot(122)
+#    #            plt.imshow(np.log(new))
+#    #            vari_funcs.no_ticks()
+#                break
+#            else:
+#                sumdiffold = sumdiff       
+##    plt.figure(1)
+##    plt.savefig('month_stacks/quad_rp_matching/sqrtrp/'+mon+'_sqrtrp.png')
+##    plt.close(1)
+##    
+##    plt.figure(2)
+##    plt.savefig('month_stacks/quad_rp_matching/rpdiff/'+mon+'_rpdiff.png')
+##    plt.close(2)
+##
+###x = [1,3,4,5,6,7,8]
+####years = ['05B', '06B', '07B', '08B', '09B', '10B', '11B', '12B']
+##plt.figure(figsize=[9,6])
+##plt.plot(x_months, aperflux,'o-', label='new')
+##plt.plot(x_months, oldaperflux, 'o-', label='old')
+##plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
+##plt.xlabel('Month')
+##plt.legend()
+##plt.tight_layout()
+##
+##plt.figure(figsize=[9,6])
+##plt.plot(x_months, oldavgFWHM, 'o-', label='old')
+##plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
+##plt.xlabel('Month')
+##plt.legend()
+##plt.tight_layout()
+##
+##np.save('extrascleanedK_quad_month', extras)

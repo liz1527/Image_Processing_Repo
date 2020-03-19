@@ -182,31 +182,31 @@ for m, sem in enumerate(months):
 #        print(np.nanmin(np.log(psf[sem][n])))
         
 ### Plot FWHM curves ###
-plt.figure(1, figsize=[9,6])
+plt.figure(1, figsize=[12,8])
 plt.subplot(221)
 plt.plot(x_months,avgFWHM1,'o')
-plt.ylim(ymax=1, ymin=0.70)
+plt.ylim(ymax=1.01, ymin=0.70)
 plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
 plt.ylabel('FWHM')
 plt.xlabel('Semester')
 
 plt.subplot(222)
 plt.plot(x_months,avgFWHM2,'o')
-plt.ylim(ymax=1, ymin=0.70)
+plt.ylim(ymax=1.01, ymin=0.70)
 plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
 plt.ylabel('FWHM')
 plt.xlabel('Semester')
 
 plt.subplot(223)
 plt.plot(x_months,avgFWHM3,'o')
-plt.ylim(ymax=1, ymin=0.70)
+plt.ylim(ymax=1.01, ymin=0.70)
 plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
 plt.ylabel('FWHM')
 plt.xlabel('Semester')
 
 plt.subplot(224)
 plt.plot(x_months,avgFWHM4,'o')
-plt.ylim(ymax=1, ymin=0.70)
+plt.ylim(ymax=1.01, ymin=0.70)
 plt.xticks(tick_inds, month_ticks, rotation = 'vertical')
 plt.ylabel('FWHM')
 plt.xlabel('Semester')
@@ -265,39 +265,39 @@ for i, sem in enumerate(sqrtrp):
     aimrp = rp[sem][aimquad]
 #    print(monfwhm)
 #    print(aimquad)
-    for n in sqrtrp[sem]:
-        plt.figure(3)
-        if n == aimquad:
-            plt.plot(r, sqrtrp[sem][n], label=n)
-        else:
-            plt.plot(r, sqrtrp[sem][n], '--', label=n)
-            
-        plt.xlabel('Radius (arcsec)')
-        plt.ylabel('sqrt(Flux)')
-        plt.ylim(ymax=0.18, ymin=0)
+#    for n in sqrtrp[sem]:
+#        plt.figure(3)
+#        if n == aimquad:
+#            plt.plot(r, sqrtrp[sem][n], label=n)
+#        else:
+#            plt.plot(r, sqrtrp[sem][n], '--', label=n)
+#            
+#        plt.xlabel('Radius (arcsec)')
+#        plt.ylabel('sqrt(Flux)')
+#        plt.ylim(ymax=0.18, ymin=0)
         
-        plt.figure(4)
-        diff = rp[sem][n] - aimrp
-        if n == aimquad:
-            plt.plot(r, diff, label=n)
-        else:
-            plt.plot(r, diff, '--', label=n)
-        plt.xlabel('Radius (arcsec)')
-        plt.ylabel('$rp_{quad} - rp_{aim}$')
-        plt.ylim(ymax=0.005, ymin=-0.002)
+#        plt.figure(4)
+#        diff = rp[sem][n] - aimrp
+#        if n == aimquad:
+#            plt.plot(r, diff, label=n)
+#        else:
+#            plt.plot(r, diff, '--', label=n)
+#        plt.xlabel('Radius (arcsec)')
+#        plt.ylabel('$rp_{quad} - rp_{aim}$')
+#        plt.ylim(ymax=0.005, ymin=-0.002)
 #        plt.ylim(ymax=0.011, ymin=-0.002)
       
-    plt.figure(3)  
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig('month_stacks/quad_fwhm_comps/sqrtrp/quad_sqrtrp_'+sem+'.png')
-    plt.close()
-    
-    plt.figure(4)  
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig('month_stacks/quad_fwhm_comps/rpdiff/quad_rpdiff_'+sem+'.png')
-    plt.close()
+#    plt.figure(3)  
+#    plt.legend()
+#    plt.tight_layout()
+#    plt.savefig('month_stacks/quad_fwhm_comps/sqrtrp/quad_sqrtrp_'+sem+'.png')
+#    plt.close()
+#    
+#    plt.figure(4)  
+#    plt.legend()
+#    plt.tight_layout()
+#    plt.savefig('month_stacks/quad_fwhm_comps/rpdiff/quad_rpdiff_'+sem+'.png')
+#    plt.close()
 #        plt.figure(3, figsize=[12,9])
 #        plt.subplot(2,2,n)
 #        plt.plot(r, sqrtrp[sem][n], label=sem)

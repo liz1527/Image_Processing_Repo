@@ -43,25 +43,25 @@ def quadrants(initdata,sem):
     idec = initdata['Y_IMAGE_'+sem]
 
     ### define bounds of quadrants ###
-    midra = 12450/2
-    middec = 13310/2
+    midra = 12450
+    middec = 13310
     
     ### create masks for quadrant ###
     mask1 = ira < midra
-    mask2 = idec < middec
+    mask2 = idec >= middec
     quad1data = initdata[mask1*mask2]
     
     mask1 = ira >= midra
-    mask2 = idec < middec
+    mask2 = idec >= middec
     quad2data = initdata[mask1*mask2]
     
     mask1 = ira < midra
-    mask2 = idec >= middec
+    mask2 = idec < middec
     quad3data = initdata[mask1*mask2]
     
     mask1 = ira >= midra
-    mask2 = idec >= middec
-    quad4data = initdata[mask1*mask2]
+    mask2 = idec < middec
+    quad4data = initdata[mask1*mask2]    
     
     return quad1data, quad2data, quad3data, quad4data
 
@@ -80,6 +80,7 @@ months = ['sep05','oct05','nov05','dec05', 'jan06', 'dec06', 'jan07',
           'jul12', 'aug12', 'sep12', 'oct12', 'nov12']
 
 for i, mon in enumerate(months):
+    print(mon)
     # for new
     colnames = colname+mon
     
@@ -91,19 +92,19 @@ for i, mon in enumerate(months):
     
     ### Match catalogues and create new table ###
     idx, d2d , _ = match_coordinates_sky(refcoord, moncoord) 
-    tempsdata = sdata[idx]
+    tempsdata = sdata[idx]      
+
+    quaddata = quadrants(tempsdata, mon)
     
-    quad1data, quad2data, quad3data, quad4data = quadrants(tempsdata, mon)
-    
-    avgFWHM = np.array([np.median(quad1data[colnames]),
-                        np.median(quad2data[colnames]),
-                        np.median(quad3data[colnames]),
-                        np.median(quad4data[colnames])])
-    print(avgFWHM)
+    avgFWHM = np.array([np.median(quaddata[0][colnames]),
+                        np.median(quaddata[1][colnames]),
+                        np.median(quaddata[2][colnames]),
+                        np.median(quaddata[3][colnames])])
+#    print(avgFWHM)
 
     ### Find 0 extra value ###
     aimind = np.array([0,1,2,3])[extras[i,:]==99]
-    print(aimind)
+    print(aimind==np.argmax(avgFWHM))
     #
     ### Convert FWHM into a sigma ###
     sigmaold = np.array([FWHM2sigma(fwhm, const) for fwhm in avgFWHM])
@@ -112,62 +113,62 @@ for i, mon in enumerate(months):
     for n, sigma in enumerate(sigmaold):
         if n==aimind:
             continue
-        sigmakernel[n] = np.sqrt(sigmabroad**2 - sigma**2 + extras[i,n])
-    print(sigmakernel)
+        sigmakernel[n] = np.sqrt(sigmabroad**2 - sigma**2) + extras[i,n]
+#    print(sigmakernel)
     
-    ## Open image ###
-    filename = 'month/UDS_' + mon[0:3] + '_' + mon[3:5] + '_K_cleaned.fits'
-    im05Bfull = fits.open(filename, memmap=True)
-    im05B = im05Bfull[0].data
-    hdr5 = im05Bfull[0].header
-    
-    quadsv = np.vsplit(im05B, 2)
-    quadsh1 = np.hsplit(quadsv[0], 2)
-    quadsh2 = np.hsplit(quadsv[1], 2)
-    quad1 = quadsh1[0] #TL
-    quad2 = quadsh1[1] #TR
-    quad3 = quadsh2[0] #BL
-    quad4 = quadsh2[1] #BR
-    
-    ### Convolve Image ###
-    if sigmakernel[0] != 0:
-        print('Convolving quad 1')
-        kernel = Gaussian2DKernel(sigmakernel[0])
-        newquad1 = convolve(quad1, kernel, normalize_kernel=True)
-    else:
-        newquad1 = quad1
-    if sigmakernel[1] != 0:
-        print('Convolving quad 2')
-        kernel = Gaussian2DKernel(sigmakernel[1])
-        newquad2 = convolve(quad2, kernel, normalize_kernel=True)
-    else:
-        newquad2 = quad2
-    
-    if sigmakernel[2] != 0:    
-        print('Convolving quad 3')
-        kernel = Gaussian2DKernel(sigmakernel[2])
-        newquad3 = convolve(quad3, kernel, normalize_kernel=True)
-    else:
-        newquad3 = quad3
-    
-    if sigmakernel[3] != 0:
-        print('Convolving quad 4')
-        kernel = Gaussian2DKernel(sigmakernel[3])
-        newquad4 = convolve(quad4, kernel, normalize_kernel=True)
-    else:
-        newquad4 = quad4
-    
-    ## Recombine image
-    newim05Bbot = np.hstack([newquad3, newquad4])
-    newim05Btop = np.hstack([newquad1, newquad2])
-    newim05B = np.vstack([newim05Btop, newim05Bbot])
-#    diff = newim05B-im05B
-#    print(np.size(diff[diff!=0]))
-    
-    ### Save the file ###
-    hdu = fits.PrimaryHDU(newim05B, header=hdr5)
-    hdulist = fits.HDUList([hdu])
-    newfilename = 'month/UDS_'+mon[0:3]+'_'+mon[3:5]+'_K_quad_cleaned.fits'
-    hdulist.writeto(newfilename, overwrite=True)
-    im05Bfull.close()
-    del im05Bfull[0].data
+#    ## Open image ###
+#    filename = 'month/UDS_' + mon[0:3] + '_' + mon[3:5] + '_K_cleaned.fits'
+#    im05Bfull = fits.open(filename, memmap=True)
+#    im05B = im05Bfull[0].data
+#    hdr5 = im05Bfull[0].header
+#    
+#    quadsv = np.vsplit(im05B, 2)
+#    quadsh1 = np.hsplit(quadsv[0], 2)
+#    quadsh2 = np.hsplit(quadsv[1], 2)
+#    quad1 = quadsh1[0] #TL
+#    quad2 = quadsh1[1] #TR
+#    quad3 = quadsh2[0] #BL
+#    quad4 = quadsh2[1] #BR
+#    
+#    ### Convolve Image ###
+#    if sigmakernel[0] != 0:
+#        print('Convolving quad 1')
+#        kernel = Gaussian2DKernel(sigmakernel[0])
+#        newquad1 = convolve(quad1, kernel, normalize_kernel=True)
+#    else:
+#        newquad1 = quad1
+#    if sigmakernel[1] != 0:
+#        print('Convolving quad 2')
+#        kernel = Gaussian2DKernel(sigmakernel[1])
+#        newquad2 = convolve(quad2, kernel, normalize_kernel=True)
+#    else:
+#        newquad2 = quad2
+#    
+#    if sigmakernel[2] != 0:    
+#        print('Convolving quad 3')
+#        kernel = Gaussian2DKernel(sigmakernel[2])
+#        newquad3 = convolve(quad3, kernel, normalize_kernel=True)
+#    else:
+#        newquad3 = quad3
+#    
+#    if sigmakernel[3] != 0:
+#        print('Convolving quad 4')
+#        kernel = Gaussian2DKernel(sigmakernel[3])
+#        newquad4 = convolve(quad4, kernel, normalize_kernel=True)
+#    else:
+#        newquad4 = quad4
+#    
+#    ## Recombine image
+#    newim05Bbot = np.hstack([newquad3, newquad4])
+#    newim05Btop = np.hstack([newquad1, newquad2])
+#    newim05B = np.vstack([newim05Btop, newim05Bbot])
+##    diff = newim05B-im05B
+##    print(np.size(diff[diff!=0]))
+#    
+#    ### Save the file ###
+#    hdu = fits.PrimaryHDU(newim05B, header=hdr5)
+#    hdulist = fits.HDUList([hdu])
+#    newfilename = 'month/UDS_'+mon[0:3]+'_'+mon[3:5]+'_K_quad_cleaned.fits'
+#    hdulist.writeto(newfilename, overwrite=True)
+#    im05Bfull.close()
+#    del im05Bfull[0].data
